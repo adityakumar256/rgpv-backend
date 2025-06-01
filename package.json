@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon sever.js"
+     "start": "node index.js",
+    "dev": "nodemon sever.js"    
   },
   "author": "",
   "license": "ISC",
