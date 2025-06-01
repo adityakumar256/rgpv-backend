@@ -12,7 +12,7 @@ connectDB();
 
 app.use(express.json());
 app.use(cors({
-  origin: 'https://rgpvfrontend.onrender.com',
+  origin: 'https://frontend-tgu6.onrender.com',  
   credentials: true,
 }));
 
