@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Subject = require('../models/Subject');  
-router.get('/subjects', async (req, res) => {
+router.get('/', async (req, res) => {
   const { year, semester, branch } = req.query;
   if (!year || !semester || !branch) {
     return res.status(400).json({ error: 'year, semester, and branch are required' });
