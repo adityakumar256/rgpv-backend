@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
+const url = process.env.MONGO_URI; 
 
-const url = "mongodb+srv://aditya44587:aditya123@cluster0.5jtlthg.mongodb.net/myDatabase?retryWrites=true&w=majority";
 
 const connectDB = async () => {
   try {
