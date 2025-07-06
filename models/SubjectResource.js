@@ -1,29 +1,40 @@
-const mongoose = require("mongoose");
+// models/SubjectResource.js
+const mongoose = require('mongoose');
 
-const subjectResourceSchema = new mongoose.Schema({
-  subjectName: { type: String, required: true, unique: true },
+const SubjectResourceSchema = new mongoose.Schema({
+  subjectName: { type: String, required: true },
   branch: { type: String, required: true },
-  notesUrl: [{ type: String }],
-  pyqBookUrl: { type: String },
+  year: Number,      // Optional but you added ✅
+  semester: Number,  // Optional but you added ✅
+  notesUrl: [String],
+  pyqBookUrl: String,
   yearWisePYQs: [
-    { year: Number, pdfUrl: String }
+    {
+      year: Number,
+      pdfUrl: String
+    }
   ],
   semesterWiseResources: [
-    { semester: Number, notesUrl: String }
+    {
+      semester: Number,
+      notesUrl: String
+    }
   ],
-  
   playlistUrls: [
     {
-      name: { type: String, required: true },
-      link: { type: String, required: true }
+      name: String,
+      link: String
     }
   ],
   tutorialLinks: [
     {
-      name: { type: String, required: true },
-      link: { type: String, required: true }
+      name: String,
+      link: String
     }
-  ],
+  ]
 });
 
-module.exports = mongoose.model("SubjectResource", subjectResourceSchema);
+// ✅✅✅ IMPORTANT: Compound unique index
+SubjectResourceSchema.index({ subjectName: 1, branch: 1 }, { unique: true });
+
+module.exports = mongoose.model('SubjectResource', SubjectResourceSchema);

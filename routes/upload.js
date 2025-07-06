@@ -1,12 +1,11 @@
 const express = require('express');
 const multer = require('multer');
-const cloudinary = require('../utils/cloudinary');
 const fs = require('fs');
 const SubjectResource = require('../models/SubjectResource');
 
 const router = express.Router();
 
-// Configure multer storage
+// Multer setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = './uploads';
@@ -16,77 +15,82 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
   },
-});
+}); 
+const upload = multer({ storage, limits: { fileSize: 200 * 1024 * 1024 } });
 
-const upload = multer({ storage, limits: { fileSize: 200 * 1024 * 1024 } }); // limit 200MB
-
-// POST /api/upload
 router.post('/', upload.single('file'), async (req, res) => {
   const { subjectName, branch, type, year, semester } = req.body;
 
-  console.log('Received body:', req.body);
-  console.log('Received file:', req.file);
+  if (!subjectName || !branch || !type) {
+    return res.status(400).json({ error: 'subjectName, branch, and type are required.' });
+  }
 
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
-  if (!subjectName || !type || !branch) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    return res.status(400).json({ error: 'subjectName, type and branch are required.' });
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded.' });
   }
 
   try {
-    // Upload file to Cloudinary
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      resource_type: 'raw',
-      folder: `rgpv-pdfs/${subjectName}/${type}`,
-      chunk_size: 6 * 1024 * 1024,
-      public_id: type === 'yearWisePYQ' && year ? `${year}` : undefined,
-    });
+    const pdfUrl = req.file.path;
 
-    // Delete file locally after upload
-    fs.unlinkSync(req.file.path);
-
-    // Find existing SubjectResource by subjectName
-    let subject = await SubjectResource.findOne({ subjectName });
+    // ✅ Fix: Find by both subjectName + branch
+    let subject = await SubjectResource.findOne({ subjectName, branch });
 
     if (!subject) {
-      // Create new if not found
-      subject = new SubjectResource({ subjectName, branch, notesUrl: [] });
-    } else {
-      // Update branch if changed
-      subject.branch = branch;
+      subject = new SubjectResource({
+        subjectName,
+        branch,
+        notesUrl: [],
+        yearWisePYQs: [],
+        semesterWiseResources: []
+      });
     }
 
-    // Update URLs based on type
     switch (type) {
       case 'notes':
-        subject.notesUrl.push(result.secure_url);
+        subject.notesUrl = [];
+        subject.notesUrl.push(pdfUrl);
         break;
+
       case 'pyqBook':
-        subject.pyqBookUrl = result.secure_url;
+        subject.pyqBookUrl = pdfUrl;
         break;
+
       case 'yearWisePYQ':
         if (year) {
-          subject.yearWisePYQs.push({ year: Number(year), pdfUrl: result.secure_url });
+          const existing = subject.yearWisePYQs.find(p => p.year === Number(year));
+          if (existing) {
+            existing.pdfUrl = pdfUrl;
+          } else {
+            subject.yearWisePYQs.push({ year: Number(year), pdfUrl });
+          }
         }
         break;
+
       case 'semesterWise':
         if (semester) {
-          subject.semesterWiseResources.push({ semester: Number(semester), notesUrl: result.secure_url });
+          const existingSem = subject.semesterWiseResources.find(p => p.semester === Number(semester));
+          if (existingSem) {
+            existingSem.notesUrl = pdfUrl;
+          } else {
+            subject.semesterWiseResources.push({ semester: Number(semester), notesUrl: pdfUrl });
+          }
         }
         break;
+
       default:
-        // You can handle other types or return error if needed
-        break;
+        return res.status(400).json({ error: 'Invalid type provided.' });
     }
 
     await subject.save();
+    res.status(201).json({ message: 'Upload successful', fileUrl: pdfUrl, subject });
 
-    res.json({ message: 'Upload & save successful!', url: result.secure_url, subject });
   } catch (err) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ error: err.message });
+    console.error('Upload error:', err);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
 module.exports = router;
- 
